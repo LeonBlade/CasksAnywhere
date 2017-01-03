@@ -1,0 +1,13 @@
+﻿{
+	"Name": "CasksAnywhere",
+	"Author": "LeonBlade",
+	"Version": {
+        "MajorVersion": 1,
+        "MinorVersion": 0,
+        "PatchVersion": 0,
+        "Build": ""
+    },
+	"Description": "Allows casts to be used anywhere.",
+	"UniqueID": "CasksAnywhere",
+	"EntryDll": "CasksAnywhere.dll"
+}
