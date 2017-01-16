@@ -7,6 +7,8 @@ namespace CasksAnywhere
 {
 	public class HijackCask : Cask
 	{
+		public HijackCask() { }
+
 		public HijackCask(Cask b) : base(b.tileLocation)
 		{
 			this.heldObject = b.heldObject;
@@ -15,41 +17,16 @@ namespace CasksAnywhere
 			this.minutesUntilReady = b.minutesUntilReady;
 		}
 
-		public HijackCask()
-		{
-		}
-
-		public Cask CaskBack()
-		{
-			// get a cask back
-			var cask = new Cask(tileLocation);
-
-			// reset all the fields
-			cask.heldObject = heldObject;
-			cask.agingRate = agingRate;
-			cask.daysToMature = daysToMature;
-			cask.minutesUntilReady = minutesUntilReady;
-
-			// return the cask
-			return cask;
-		}
-
-		public bool interrupt(bool r)
-		{
-			CasksAnywhere.ReleaseCask(this, new ReleaseCaskEventArgs(tileLocation));
-			return r;
-		}
-
 		public override bool performObjectDropInAction(StardewValley.Object dropIn, bool probe, Farmer who)
 		{
 			if (dropIn != null && dropIn.bigCraftable)
-				return interrupt(false);
+				return false;
 
 			if (this.heldObject != null)
-				return interrupt(false);
+				return false;
 
 			if (this.quality >= 4)
-				return interrupt(false);
+				return false;
 			
 			bool flag = false;
 			float num = 1f;
@@ -95,7 +72,7 @@ namespace CasksAnywhere
 			}
 
 			if (!flag)
-				return interrupt(false);
+				return false;
 			
 			this.heldObject = dropIn.getOne() as StardewValley.Object;
 
@@ -120,16 +97,8 @@ namespace CasksAnywhere
 					alphaFade = 0.005f
 				});
 			}
-			return interrupt(true);
-		}
-	}
 
-	public class ReleaseCaskEventArgs : EventArgs
-	{
-		public Vector2 location;
-		public ReleaseCaskEventArgs(Vector2 l)
-		{
-			location = l;
+			return true;
 		}
 	}
 }

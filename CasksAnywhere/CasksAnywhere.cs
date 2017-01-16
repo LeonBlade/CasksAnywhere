@@ -5,73 +5,144 @@ using StardewValley.Objects;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
+using System.Linq;
 
 namespace CasksAnywhere
 {
 	public class CasksAnywhere : Mod
 	{
-		public static EventHandler<ReleaseCaskEventArgs> ReleaseCask;
-		private List<Vector2> casks = new List<Vector2>();
+		struct MapPosition
+		{
+			public GameLocation Location;
+			public Vector2 Position;
+
+			public MapPosition(GameLocation location, Vector2 position)
+			{
+				Location = location;
+				Position = position;
+			}
+		};
+
+		static HashSet<MapPosition> JackedCasks = new HashSet<MapPosition>();
+		static HashSet<GameLocation> SweepedLocations = new HashSet<GameLocation>();
+
 
 		public override void Entry(IModHelper helper)
 		{
-			GameEvents.OneSecondTick += GameEvents_OneSecondTick;
-			ReleaseCask += CasksAnywhere_ReleaseCask;
-			ControlEvents.MouseChanged += ControlEvents_MouseChanged;
-			ControlEvents.ControllerButtonPressed += ControlEvents_ControllerButtonPressed;
+			PlayerEvents.InventoryChanged += OnInventoryChanged;
+			SaveEvents.BeforeSave += OnBeforeSave;
+			SaveEvents.AfterSave += OnAfterSave;
+			SaveEvents.AfterLoad += OnAfterLoad;
 		}
 
-		void GameEvents_OneSecondTick(object sender, EventArgs e)
+		void OnCurrentLocationChanged(object sender, EventArgsCurrentLocationChanged e)
 		{
-			if (casks.Count == 0)
-				return;
+			if (!SweepedLocations.Contains(e.NewLocation))
+				CaskSweep();
+		}
 
-			foreach (var cask in casks)
+		void OnBeforeSave(object sender, EventArgs e)
+		{
+			foreach (var j in JackedCasks)
 			{
-				if (!Game1.currentLocation.objects.ContainsKey(cask) || !(Game1.currentLocation.objects[cask] is HijackCask))
-					continue;
-				Game1.currentLocation.objects[cask] = (Game1.currentLocation.objects[cask] as HijackCask).CaskBack();
-
+				if (j.Location.objects.ContainsKey(j.Position))
+				{
+					var o = j.Location.objects[j.Position];
+					if (o is HijackCask)
+						j.Location.objects[j.Position] = CaskBack(o as HijackCask);
+				}
 			}
-
-			casks.Clear();
 		}
 
-		void ControlEvents_MouseChanged(object sender, EventArgsMouseStateChanged e)
+		void OnAfterSave(object sender, EventArgs e)
 		{
-			if (e.NewState.LeftButton == ButtonState.Pressed)
-				hijackCask();
+			foreach (var j in JackedCasks)
+			{
+				if (j.Location.objects.ContainsKey(j.Position))
+				{
+					var o = j.Location.objects[j.Position];
+					if (o is Cask)
+						j.Location.objects[j.Position] = new HijackCask(o as Cask);
+				}
+			}
 		}
 
-		void ControlEvents_ControllerButtonPressed(object sender, EventArgsControllerButtonPressed e)
+		void OnAfterLoad(object sender, EventArgs e)
 		{
-			if (e.ButtonPressed == Buttons.A)
-				hijackCask();
+			LocationEvents.CurrentLocationChanged += OnCurrentLocationChanged;
+			LocationEvents.LocationObjectsChanged += OnLocationObjectsChanged;
 		}
 
-		void CasksAnywhere_ReleaseCask(object sender, ReleaseCaskEventArgs e)
+		void OnLocationObjectsChanged(object sender, EventArgsLocationObjectsChanged e)
 		{
-			casks.Add(e.location);
+			LocationEvents.LocationObjectsChanged -= OnLocationObjectsChanged;
+			CaskSweep();
 		}
 
-		private void hijackCask()
-		{
-			// get the tile location
-			var tileLocation = new Vector2(
-				(Game1.viewport.X + Game1.getOldMouseX()) / Game1.tileSize,
-				(Game1.viewport.Y + Game1.getOldMouseY()) / Game1.tileSize
-			);
 
+		void OnInventoryChanged(object sender, EventArgsInventoryChanged e)
+		{
+			foreach (var item in e.Removed)
+			{
+				// ensure this is a cask
+				if (item.Item.Name != "Cask")
+					continue;
+
+				// hijack the cask
+				Hijack();
+			}
+		}
+
+		private void Hijack()
+		{
+			Hijack(Game1.currentLocation, Game1.currentCursorTile);
+		}
+
+		private void Hijack(GameLocation location, Vector2 tileLocation)
+		{
+			// if we're in a menu we likely didn't place a cask down
+			if (Game1.activeClickableMenu != null)
+				return;
+			
 			// if our location is valid and we have an object in this location
-			if (Game1.currentLocation != null && Game1.currentLocation.objects.ContainsKey(tileLocation))
+			if (location != null && Game1.currentLocation.objects.ContainsKey(tileLocation))
 			{
 				// the item in question
-				Item item = Game1.currentLocation.objects[tileLocation];
+				var item = location.objects[tileLocation];
 				// if this is a cask then hijack it!
 				if (item != null && item is Cask)
-					Game1.currentLocation.objects[tileLocation] = new HijackCask(item as Cask);
+				{
+					// turn the cask into a Hijacked Cask
+					location.objects[tileLocation] = new HijackCask(item as Cask);
+					// add this cask to the jacked casks list
+					JackedCasks.Add(new MapPosition(location, tileLocation));
+				}
 			}
+		}
+
+		private Cask CaskBack(HijackCask j)
+		{
+			// get a cask back
+			var cask = new Cask(j.tileLocation);
+
+			// reset all the fields
+			cask.heldObject = j.heldObject;
+			cask.agingRate = j.agingRate;
+			cask.daysToMature = j.daysToMature;
+			cask.minutesUntilReady = j.minutesUntilReady;
+
+			// return the cask
+			return cask;
+		}
+
+		private void CaskSweep()
+		{
+			if (SweepedLocations.Contains(Game1.currentLocation))
+				return;
+			foreach (var o in Game1.currentLocation.objects.ToArray())
+				if (o.Value is Cask)
+					Hijack(Game1.currentLocation, o.Key);
+			SweepedLocations.Add(Game1.currentLocation);
 		}
 	}
 }
