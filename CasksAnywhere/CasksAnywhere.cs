@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using StardewValley;
 using StardewValley.Objects;
@@ -88,14 +88,11 @@ namespace CasksAnywhere
 				if (item.Item.Name != "Cask")
 					continue;
 
-				// hijack the cask
-				Hijack();
-			}
-		}
+			foreach (var o in Game1.currentLocation.objects.ToArray())
+				if (o.Value is Cask && !(o.Value is HijackCask) )
+					Hijack(Game1.currentLocation, o.Key);
 
-		private void Hijack()
-		{
-			Hijack(Game1.currentLocation, Game1.currentCursorTile);
+			}
 		}
 
 		private void Hijack(GameLocation location, Vector2 tileLocation)
