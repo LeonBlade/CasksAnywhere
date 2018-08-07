@@ -25,17 +25,18 @@ namespace CasksAnywhere
 
 		static HashSet<MapPosition> JackedCasks = new HashSet<MapPosition>();
 		static HashSet<GameLocation> SweepedLocations = new HashSet<GameLocation>();
-
+		public static IModHelper helper;
 
 		public override void Entry(IModHelper helper)
 		{
+			CasksAnywhere.helper = helper;
 			PlayerEvents.InventoryChanged += OnInventoryChanged;
 			SaveEvents.BeforeSave += OnBeforeSave;
 			SaveEvents.AfterSave += OnAfterSave;
 			SaveEvents.AfterLoad += OnAfterLoad;
 		}
 
-		void OnCurrentLocationChanged(object sender, EventArgsCurrentLocationChanged e)
+		void OnPlayerWarped(object sender, EventArgsPlayerWarped e)
 		{
 			if (!SweepedLocations.Contains(e.NewLocation))
 				CaskSweep();
@@ -69,13 +70,13 @@ namespace CasksAnywhere
 
 		void OnAfterLoad(object sender, EventArgs e)
 		{
-			LocationEvents.CurrentLocationChanged += OnCurrentLocationChanged;
-			LocationEvents.LocationObjectsChanged += OnLocationObjectsChanged;
+			PlayerEvents.Warped += OnPlayerWarped;
+			LocationEvents.ObjectsChanged += OnLocationObjectsChanged;
 		}
 
 		void OnLocationObjectsChanged(object sender, EventArgsLocationObjectsChanged e)
 		{
-			LocationEvents.LocationObjectsChanged -= OnLocationObjectsChanged;
+			LocationEvents.ObjectsChanged -= OnLocationObjectsChanged;
 			CaskSweep();
 		}
 
@@ -88,8 +89,8 @@ namespace CasksAnywhere
 				if (item.Item.Name != "Cask")
 					continue;
 
-			foreach (var o in Game1.currentLocation.objects.ToArray())
-				if (o.Value is Cask && !(o.Value is HijackCask) )
+			foreach (var o in Game1.currentLocation.objects.Pairs)
+				if (o.Value is Cask && !(o.Value is HijackCask))
 					Hijack(Game1.currentLocation, o.Key);
 
 			}
@@ -120,13 +121,13 @@ namespace CasksAnywhere
 		private Cask CaskBack(HijackCask j)
 		{
 			// get a cask back
-			var cask = new Cask(j.tileLocation);
+			var cask = new Cask(j.TileLocation);
 
 			// reset all the fields
-			cask.heldObject = j.heldObject;
-			cask.agingRate = j.agingRate;
-			cask.daysToMature = j.daysToMature;
-			cask.minutesUntilReady = j.minutesUntilReady;
+			cask.heldObject.Value = j.heldObject.Value;
+			cask.agingRate.Value = j.agingRate.Value;
+			cask.daysToMature.Value = j.daysToMature.Value;
+			cask.MinutesUntilReady = j.MinutesUntilReady;
 
 			// return the cask
 			return cask;
@@ -136,7 +137,7 @@ namespace CasksAnywhere
 		{
 			if (SweepedLocations.Contains(Game1.currentLocation))
 				return;
-			foreach (var o in Game1.currentLocation.objects.ToArray())
+			foreach (var o in Game1.currentLocation.objects.Pairs)
 				if (o.Value is Cask)
 					Hijack(Game1.currentLocation, o.Key);
 			SweepedLocations.Add(Game1.currentLocation);

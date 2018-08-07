@@ -2,6 +2,8 @@
 using StardewValley;
 using StardewValley.Objects;
 using Microsoft.Xna.Framework;
+using Netcode;
+using StardewValley.Locations;
 
 namespace CasksAnywhere
 {
@@ -9,31 +11,31 @@ namespace CasksAnywhere
 	{
 		public HijackCask() { }
 
-		public HijackCask(Cask b) : base(b.tileLocation)
+		public HijackCask(Cask b) : base(b.TileLocation)
 		{
-			this.heldObject = b.heldObject;
-			this.agingRate = b.agingRate;
-			this.daysToMature = b.daysToMature;
-			this.minutesUntilReady = b.minutesUntilReady;
+			heldObject.Value = b.heldObject.Value;
+			agingRate.Value = b.agingRate.Value;
+			daysToMature.Value = b.daysToMature.Value;
+			MinutesUntilReady = b.MinutesUntilReady;
 		}
 
-		public override bool performObjectDropInAction(StardewValley.Object dropIn, bool probe, Farmer who)
+		public override bool performObjectDropInAction(Item dropIn, bool probe, Farmer who)
 		{
-			if (dropIn != null && dropIn.bigCraftable)
+			if (dropIn != null && dropIn is StardewValley.Object && ((dropIn as StardewValley.Object).bigCraftable.Value) || heldObject.Value != null)
 				return false;
 
-			if (this.heldObject != null)
+			if (Quality >= 4)
 				return false;
 
-			if (this.quality >= 4)
-				return false;
-			
 			bool flag = false;
 			float num = 1f;
-			int psi = dropIn.parentSheetIndex;
 
-			switch (psi)
+			switch (dropIn.ParentSheetIndex)
 			{
+				case 303:
+					flag = true;
+					num = 1.66f;
+					break;
 				case 346:
 					flag = true;
 					num = 2f;
@@ -42,63 +44,51 @@ namespace CasksAnywhere
 					flag = true;
 					num = 1f;
 					break;
-				default:
-					switch (psi - 424)
-					{
-						case 0:
-							flag = true;
-							num = 4f;
-							break;
-						case 2:
-							flag = true;
-							num = 4f;
-							break;
-						default:
-							if (psi != 303)
-							{
-								if (psi == 459)
-								{
-									flag = true;
-									num = 2f;
-									break;
-								}
-								break;
-							}
-							flag = true;
-							num = 1.66f;
-							break;
-					}
+				case 424:
+					flag = true;
+					num = 4f;
+					break;
+				case 426:
+					flag = true;
+					num = 4f;
+					break;
+				case 459:
+					flag = true;
+					num = 2f;
 					break;
 			}
 
 			if (!flag)
 				return false;
-			
-			this.heldObject = dropIn.getOne() as StardewValley.Object;
+
+			heldObject.Value = dropIn.getOne() as StardewValley.Object;
 
 			if (!probe)
 			{
-				this.agingRate = num;
-				this.daysToMature = 56f;
-				this.minutesUntilReady = 999999;
-				if (this.heldObject.quality == 1)
-					this.daysToMature = 42f;
-				else if (this.heldObject.quality == 2)
-					this.daysToMature = 28f;
-				else if (this.heldObject.quality == 4)
+				agingRate.Value = num;
+				daysToMature.Value = 56f;
+				MinutesUntilReady = 999999;
+				if (heldObject.Value.Quality == 1)
+					daysToMature.Value = 42f;
+				else if (heldObject.Value.Quality == 2)
+					daysToMature.Value = 28f;
+				else if (heldObject.Value.Quality == 4)
 				{
-					this.daysToMature = 0.0f;
-					this.minutesUntilReady = 1;
+					daysToMature.Value = 0.0f;
+					MinutesUntilReady = 1;
 				}
-				Game1.playSound("Ship");
-				Game1.playSound("bubbles");
-				who.currentLocation.temporarySprites.Add(new TemporaryAnimatedSprite(Game1.animations, new Rectangle(256, 1856, 64, 128), 80f, 6, 999999, this.tileLocation * (float)Game1.tileSize + new Vector2(0.0f, (float)(-Game1.tileSize * 2)), false, false, (float)(((double)this.tileLocation.Y + 1.0) * (double)Game1.tileSize / 10000.0 + 9.99999974737875E-05), 0.0f, Color.Yellow * 0.75f, 1f, 0.0f, 0.0f, 0.0f, false)
+				who.currentLocation.playSound("Ship");
+				who.currentLocation.playSound("bubbles");
+				CasksAnywhere.helper.Reflection.GetField<Multiplayer>(typeof(Game1), "multiplayer").GetValue().broadcastSprites(who.currentLocation, new TemporaryAnimatedSprite[1]
 				{
-					alphaFade = 0.005f
+					new TemporaryAnimatedSprite("TileSheets\\animations", new Rectangle(256, 1856, 64, 128), 80f, 6, 999999, this.TileLocation * 64f + new Vector2(0.0f, (float)sbyte.MinValue), false, false, (float)(((double)this.TileLocation.Y + 1.0) * 64.0 / 10000.0 + 9.99999974737875E-05), 0.0f, Color.Yellow * 0.75f, 1f, 0.0f, 0.0f, 0.0f, false)
+					{
+						alphaFade = 0.005f
+					}
 				});
 			}
-
 			return true;
 		}
+
 	}
 }
